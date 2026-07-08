@@ -772,7 +772,7 @@ body{
 </noscript>
 
 <div class="brand">
-  <div class="brand-row"><span class="premium">PREMIUM</span><span class="k">K</span><span class="ver">Ver.2.9</span></div>
+  <div class="brand-row"><span class="premium">PREMIUM</span><span class="k">K</span><span class="ver">Ver.3.0</span></div>
   <div class="brand-sub">Site Order · 현장 주문</div>
   <div class="step-dots">
     <div class="step-dot on" id="dot1"></div>
@@ -1234,7 +1234,7 @@ function renderProducts(){
       <div class="pcard-main" data-sku="${p.sku}" data-detail="1">
         <div class="pthumb">${thumb}</div>
         <div style="flex:1;min-width:0;">
-          <div class="pname">${p.nameKo}<span style="display:block;font-weight:400;color:var(--text-2);font-size:12px;margin-top:1px;">${p.nameEn}</span></div>
+          <div class="pname">${p.nameEn}<span style="display:block;font-weight:400;color:var(--text-2);font-size:12px;margin-top:1px;">${p.nameKo}</span></div>
           ${specLine}
           <div class="pmeta">${p.sku} · ${priceLine} ${detailBtn}</div>
           ${modeToggle}
@@ -1278,8 +1278,8 @@ function openLightbox(sku){
   const resolvedImg = p.img || (p.imgPage ? TOGO_PAGE_IMAGES[p.imgPage] : null);
   document.getElementById('lbImg').src = resolvedImg || '';
   document.getElementById('lbImg').style.display = resolvedImg ? 'block' : 'none';
-  document.getElementById('lbNameKo').textContent = p.nameKo;
-  document.getElementById('lbNameEn').textContent = p.nameEn;
+  document.getElementById('lbNameKo').textContent = p.nameEn;
+  document.getElementById('lbNameEn').textContent = p.nameKo;
   document.getElementById('lbMeta').textContent = p.locked
     ? `${p.sku} · 🔒 Login to see price 로그인 시 가격 확인 가능`
     : p.tbd
@@ -1356,7 +1356,7 @@ function renderCartList(){
       return `
       <div class="citem">
         <div>
-          <div class="pname">${i.product.nameKo}<span style="display:block;font-weight:400;color:var(--text-2);font-size:12px;margin-top:1px;">${i.product.nameEn}</span></div>
+          <div class="pname">${i.product.nameEn}<span style="display:block;font-weight:400;color:var(--text-2);font-size:12px;margin-top:1px;">${i.product.nameKo}</span></div>
           <div class="pmeta">${i.qty}개 × <span style="color:var(--orange);font-weight:700;">Price on request 가격 문의</span>${variantNote}</div>
         </div>
         <button class="crm" data-sku="${i.product.sku}">Remove 삭제</button>
@@ -1369,7 +1369,7 @@ function renderCartList(){
     return `
     <div class="citem">
       <div>
-        <div class="pname">${i.product.nameKo}<span style="display:block;font-weight:400;color:var(--text-2);font-size:12px;margin-top:1px;">${i.product.nameEn}</span></div>
+        <div class="pname">${i.product.nameEn}<span style="display:block;font-weight:400;color:var(--text-2);font-size:12px;margin-top:1px;">${i.product.nameKo}</span></div>
         <div class="pmeta">${i.qty}${modeLabel} × $${unitPrice.toFixed(2)} = $${(i.qty*unitPrice).toFixed(2)}${pieceNote}${variantNote}</div>
       </div>
       <button class="crm" data-sku="${i.product.sku}">Remove 삭제</button>
