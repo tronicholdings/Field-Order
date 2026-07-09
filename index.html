@@ -609,6 +609,12 @@ body{
 .authbar a{color:#0B1B33;font-weight:700;text-decoration:underline;}
 .authbar-in{background:#EEF1F8;color:var(--navy);}
 .authbar-in a{color:var(--orange);}
+.statsbar{
+  background:var(--navy);color:#fff;font-size:12px;text-align:center;padding:8px 10px;
+  display:flex;justify-content:center;gap:16px;flex-wrap:wrap;
+}
+.statsbar b{color:#FFD9B3;}
+.authbar-in a{color:var(--orange);}
 
 /* Auth modal */
 .authmodal{
@@ -772,7 +778,7 @@ body{
 </noscript>
 
 <div class="brand">
-  <div class="brand-row"><span class="premium">PREMIUM</span><span class="k">K</span><span class="ver">Ver.3.0</span></div>
+  <div class="brand-row"><span class="premium">PREMIUM</span><span class="k">K</span><span class="ver">Ver.3.8</span></div>
   <div class="brand-sub">Site Order · 현장 주문</div>
   <div class="step-dots">
     <div class="step-dot on" id="dot1"></div>
@@ -789,6 +795,7 @@ body{
   <span id="authUserLabel"></span> · <a href="#" onclick="location.href='https://premium-k-backend.vercel.app/account.html';return false;">My Account 내 계정</a> · <a href="#" onclick="logout();return false;">Logout 로그아웃</a>
   <a href="#" id="adminLink" style="display:none;margin-left:8px;" onclick="location.href='https://premium-k-backend.vercel.app/admin.html';return false;">Admin 관리자</a>
 </div>
+<div class="statsbar" id="statsBar" style="display:none;"></div>
 
 <!-- ===== 로그인/회원가입 모달 ===== -->
 <div class="authmodal" id="authModal">
@@ -846,7 +853,7 @@ body{
   <div class="field"><label>Store / Customer Name 매장명 / 고객명 *</label><input id="custName" placeholder="예: ABC Market"></div>
   <div class="field"><label>Phone 연락처 *</label><input id="custPhone" type="tel" placeholder="(213) 000-0000"></div>
   <div class="field"><label>Email (optional / 선택) 이메일</label><input id="custEmail" type="email" placeholder="order@example.com"></div>
-  <div class="field"><label>Address 주소 *</label><textarea id="custAddr" placeholder="배송/딜리버리 주소"></textarea></div>
+  <div class="field"><label>Address 주소 *</label><textarea id="custAddr" placeholder="Delivery address 배송/딜리버리 주소"></textarea></div>
 
   <div class="label">Fulfillment Method 수령 방법</div>
   <div class="choices">
@@ -918,10 +925,10 @@ body{
     <select id="repSelect" onchange="toggleRepManual()"></select>
   </div>
   <div class="field" id="repManualField" style="display:none">
-    <input id="repManual" placeholder="영업사원 이름 입력">
+    <input id="repManual" placeholder="Enter sales rep name 영업사원 이름 입력">
   </div>
 
-  <div class="field"><label>Notes (optional / 선택) 메모</label><textarea id="orderNotes" placeholder="특이사항이 있으면 적어주세요"></textarea></div>
+  <div class="field"><label>Notes (optional / 선택) 메모</label><textarea id="orderNotes" placeholder="Anything else we should know? 특이사항이 있으면 적어주세요"></textarea></div>
 
   <div class="errbox" id="errBox"></div>
   <button class="btn-primary" onclick="submitOrder()" id="submitBtn">Submit Order 주문 접수하기</button>
@@ -938,7 +945,7 @@ body{
     <a class="paylink" id="payBtn" style="display:none" target="_blank" rel="noopener">Go to Payment 결제 페이지로 이동 →</a>
 
     <div class="orderbox" id="orderSummaryBox"></div>
-    <a class="btn-ghost" id="mailFallbackBtn" style="display:none;text-decoration:none;text-align:center;" href="#">📧 메일 앱으로 보내기</a>
+    <a class="btn-ghost" id="mailFallbackBtn" style="display:none;text-decoration:none;text-align:center;" href="#">📧 Open in Mail App 메일 앱으로 보내기</a>
     <button class="btn-ghost" onclick="resetApp()">Start New Order 새 주문 시작하기</button>
   </div>
 </div>
@@ -1019,12 +1026,39 @@ function updateAuthBar() {
     guestBar.style.display = 'none';
     userBar.style.display = 'block';
     document.getElementById('authUserLabel').textContent = authUser.approved
-      ? `${authUser.phone}님 (승인됨)`
-      : `${authUser.phone}님 (승인 대기중)`;
+      ? `${authUser.phone} (Approved 승인됨)`
+      : `${authUser.phone} (Pending approval 승인 대기중)`;
     document.getElementById('adminLink').style.display = authUser.isAdmin ? 'inline' : 'none';
+    if (authUser.approved) loadPurchaseStats();
   } else {
     guestBar.style.display = 'block';
     userBar.style.display = 'none';
+    document.getElementById('statsBar').style.display = 'none';
+  }
+}
+
+async function loadPurchaseStats() {
+  const bar = document.getElementById('statsBar');
+  try {
+    const data = await apiFetch('/orders');
+    const orders = data.orders || [];
+
+    const allTimeTotal = orders.reduce((s, o) => s + Number(o.total || 0), 0);
+
+    const now = new Date();
+    const thisMonthTotal = orders.reduce((s, o) => {
+      const d = new Date(o.created_at);
+      const inThisMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      return inThisMonth ? s + Number(o.total || 0) : s;
+    }, 0);
+
+    bar.innerHTML =
+      `Total Purchased 총 구매액: <b>$${allTimeTotal.toFixed(2)}</b>` +
+      ` &nbsp;·&nbsp; This Month 이번달 구매액: <b>$${thisMonthTotal.toFixed(2)}</b>`;
+    bar.style.display = 'flex';
+  } catch (e) {
+    console.error('Failed to load purchase stats', e);
+    bar.style.display = 'none';
   }
 }
 
@@ -1048,7 +1082,7 @@ async function doLogin() {
   try {
     const data = await apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ phone, password, deviceId }) });
     authToken = data.token;
-    authUser = { phone: phone.replace(/[^0-9]/g, ''), approved: data.approved, email: data.email, isAdmin: data.isAdmin };
+    authUser = { phone: phone.replace(/[^0-9]/g, ''), approved: data.approved, email: data.email, isAdmin: data.isAdmin, companyName: data.companyName, createdAt: data.createdAt };
     localStorage.setItem('pk_token', authToken);
     localStorage.setItem('pk_user', JSON.stringify(authUser));
     closeAuthModal();
@@ -1160,18 +1194,27 @@ const CAT_LABELS = {
   '전체': 'All 전체',
   'TOGO SOLUTION': 'TOGO SOLUTION',
   '수산물/건어물': 'Seafood 수산물/건어물',
-  '음료/주류': 'Beverages 음료/주류',
-  '건강식품': 'Health 건강식품',
   '즉석식품': 'Ready-to-Eat 즉석식품',
-  '양념/스낵': 'Sauce & Snacks 양념/스낵',
-  '나물/간편식': 'Namul & Meals 나물/간편식',
-  '주방용품': 'Kitchenware 주방용품',
+  '양념/스낵': 'Sauce & Snack 양념/스낵',
+  '나물/간편식': 'K-Namul & Meal 나물/간편식',
+  '건강식품': 'Health 건강식품',
+  '주방용품': 'Hardware 주방용품',
+  '음료/주류': 'Beverages 음료/주류',
 };
 function catLabel(c){ return CAT_LABELS[c] || c; }
 
+// 카테고리 탭 고정 순서 — 상품 데이터에 실제로 있는 카테고리만 이 순서대로 보여주고,
+// 혹시 목록에 없는 새 카테고리가 생기면 맨 뒤에 자동으로 추가됩니다.
+const CAT_ORDER = [
+  '전체', '수산물/건어물', '즉석식품',
+  '양념/스낵', '나물/간편식', '건강식품', '주방용품', '음료/주류', 'TOGO SOLUTION',
+];
+
 function recomputeCats(){
-  const otherCats = Array.from(new Set(PRODUCTS.map(p=>p.cat))).filter(c=>c!=='TOGO SOLUTION');
-  cats = ['전체', 'TOGO SOLUTION', ...otherCats];
+  const present = new Set(['전체', ...PRODUCTS.map(p=>p.cat)]);
+  const ordered = CAT_ORDER.filter(c => present.has(c));
+  const extras = [...present].filter(c => !CAT_ORDER.includes(c));
+  cats = [...ordered, ...extras];
 }
 
 function renderTabs(){
@@ -1184,11 +1227,18 @@ function renderTabs(){
 
 function renderProducts(){
   const q = document.getElementById('search').value.trim().toLowerCase();
-  const list = PRODUCTS.filter(p=>{
+  let list = PRODUCTS.filter(p=>{
     const catOk = activeCat==='전체' || p.cat===activeCat;
     const qOk = !q || p.nameKo.toLowerCase().includes(q) || p.nameEn.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
     return catOk && qOk;
   });
+  if (activeCat === '전체') {
+    // "전체"에서도 탭과 같은 카테고리 순서(CAT_ORDER)로 묶어서 보여줍니다.
+    list = list.slice().sort((a, b) => {
+      const ia = CAT_ORDER.indexOf(a.cat), ib = CAT_ORDER.indexOf(b.cat);
+      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
+    });
+  }
   const el = document.getElementById('plist');
   if(!list.length){ el.innerHTML = '<div style="text-align:center;color:var(--text-2);padding:30px 0;font-size:13.5px;">No results found 검색 결과가 없습니다</div>'; return; }
   el.innerHTML = list.map(p=>{
@@ -1198,7 +1248,7 @@ function renderProducts(){
     const resolvedImg = p.img || (p.imgPage ? TOGO_PAGE_IMAGES[p.imgPage] : null);
     const thumb = resolvedImg ? `<img src="${resolvedImg}" alt="" class="${isSharedPageImg ? 'zoomed-thumb' : ''}">` : '📦';
     const detailBtn = p.url
-      ? `<a class="detail-pill" href="${p.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Detail ↗</a>`
+      ? `<a class="detail-pill" href="${p.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Details 상세보기 ↗</a>`
       : '';
     const specLine = p.spec ? `<div class="pmeta" style="color:var(--text-2);">${p.spec}</div>` : '';
 
@@ -1210,8 +1260,8 @@ function renderProducts(){
     } else if (p.ctnPrice) {
       // 카톤(박스) 단위로만 주문 가능 — 개당 환산 가격은 옆에 참고로만 붙여서 표시
       const perUnit = p.price > 0 ? ` <span class="refprice">($${p.price.toFixed(2)} each 개당)</span>` : '';
-      modeToggle = `<div class="modetoggle"><span class="modehint2s">Ordered by Box/Carton only 제품은 박스(카톤) 단위로 주문됩니다</span></div>`;
-      priceLine = `<span class="pprice">$${p.ctnPrice.toFixed(2)} / Box·Carton(${p.ctnQty || '?'}) 박스(카톤)</span>${perUnit}`;
+      modeToggle = `<div class="modetoggle"><span class="modehint2s">Ordered by Box(Case) only 제품은 박스(케이스) 단위로 주문됩니다</span></div>`;
+      priceLine = `<span class="pprice">$${p.ctnPrice.toFixed(2)} / Box(Case)(${p.ctnQty || '?'}) 박스(케이스)</span>${perUnit}`;
     } else {
       // 카톤 정보가 없는 예외 품목만 개당 구매 허용 (예: PRE-ORDER)
       priceLine = `<span class="pprice">$${(p.price||0).toFixed(2)} / Each 개</span>`;
@@ -1280,11 +1330,23 @@ function openLightbox(sku){
   document.getElementById('lbImg').style.display = resolvedImg ? 'block' : 'none';
   document.getElementById('lbNameKo').textContent = p.nameEn;
   document.getElementById('lbNameEn').textContent = p.nameKo;
-  document.getElementById('lbMeta').textContent = p.locked
-    ? `${p.sku} · 🔒 Login to see price 로그인 시 가격 확인 가능`
-    : p.tbd
-    ? `${p.sku} · Price on request (TBD) 가격 문의`
-    : `${p.sku} · $${priceFor(p, mode).toFixed(2)} / ${mode==='carton'?'카톤':'개'}`;
+
+  let metaHtml;
+  if (p.locked) {
+    metaHtml = `${p.sku} · 🔒 Login to see price 로그인 시 가격 확인 가능`;
+  } else if (p.tbd) {
+    metaHtml = `${p.sku} · Price on request (TBD) 가격 문의`;
+  } else if (mode === 'carton') {
+    const ctnQtyText = p.ctnQty ? `${p.ctnQty}` : '?';
+    const perUnitText = p.price > 0
+      ? `<br><span style="color:var(--text-2);font-size:11.5px;">${ctnQtyText} units per box(case) 박스(케이스)당 ${ctnQtyText}개입 · $${p.price.toFixed(2)} each 개당</span>`
+      : `<br><span style="color:var(--text-2);font-size:11.5px;">${ctnQtyText} units per box(case) 박스(케이스)당 ${ctnQtyText}개입</span>`;
+    metaHtml = `${p.sku} · $${p.ctnPrice.toFixed(2)} / Box(Case) 박스(케이스)${perUnitText}`;
+  } else {
+    metaHtml = `${p.sku} · $${priceFor(p, mode).toFixed(2)} / Each 개`;
+  }
+  document.getElementById('lbMeta').innerHTML = metaHtml;
+
   const lbLink = document.getElementById('lbLink');
   if(p.url){ lbLink.style.display = 'block'; lbLink.href = p.url; }
   else { lbLink.style.display = 'none'; }
@@ -1363,9 +1425,9 @@ function renderCartList(){
       </div>`;
     }
     const unitPrice = priceFor(i.product, i.mode);
-    const modeLabel = i.mode === 'carton' ? '카톤' : '개';
+    const modeLabel = i.mode === 'carton' ? ' box(case) 박스(케이스)' : ' unit(s) 개';
     const pieces = pieceCountFor(i);
-    const pieceNote = i.mode === 'carton' ? `<br><span style="color:var(--orange);font-weight:600;">→ Actual ship qty: ${pieces} (${i.product.ctnQty} × ${i.qty} cartons) 실제 배송 개수</span>` : '';
+    const pieceNote = i.mode === 'carton' ? `<br><span style="color:var(--orange);font-weight:600;">→ Actual ship qty: ${pieces} (${i.product.ctnQty} × ${i.qty} box(case)) 실제 배송 개수</span>` : '';
     return `
     <div class="citem">
       <div>
@@ -1439,8 +1501,8 @@ async function shareCheckPhoto(){
     if(navigator.share && navigator.canShare && navigator.canShare({files:[file]})){
       await navigator.share({
         files: [file],
-        title: '체크 사진 - 현장 주문',
-        text: `${document.getElementById('custName').value || ''} 주문 체크 사진`
+        title: 'Check Photo - Site Order 체크 사진 - 현장 주문',
+        text: `${document.getElementById('custName').value || ''} Check Photo 주문 체크 사진`
       });
     } else {
       showErr('This browser can\'t share photos directly — please save it and send via text/KakaoTalk/email. 이 브라우저는 사진 공유를 지원하지 않습니다.');
@@ -1490,17 +1552,17 @@ function buildOrderText(rep, invoiceNumber){
     return str.length >= len ? str : ' '.repeat(len - str.length) + str;
   };
 
-  const NAME_W = 28, QTY_W = 9, PRICE_W = 10, SUB_W = 10, PIECE_W = 10;
-  const header = `${pad('상품명', NAME_W)}${padNum('주문수량', QTY_W)}${padNum('단가', PRICE_W)}${padNum('소계', SUB_W)}${padNum('실배송개수', PIECE_W)}`;
+  const NAME_W = 26, QTY_W = 10, PRICE_W = 10, SUB_W = 10, PIECE_W = 12;
+  const header = `${pad('Item 상품명', NAME_W)}${padNum('Qty 수량', QTY_W)}${padNum('Price 단가', PRICE_W)}${padNum('Subtotal 소계', SUB_W)}${padNum('Ship Qty 배송수량', PIECE_W)}`;
   const divider = '─'.repeat(NAME_W + QTY_W + PRICE_W + SUB_W + PIECE_W);
   const rows = cartArray().map(i => {
     const variantSuffix = i.variant ? ` [${i.variant}]` : '';
     const name = `${i.product.nameKo}${variantSuffix}`;
     if (i.product.tbd) {
       const qty = `${i.qty}개`;
-      return `${pad(name, NAME_W)}${padNum(qty, QTY_W)}${padNum('문의', PRICE_W)}${padNum('문의', SUB_W)}${padNum('-', PIECE_W)}`;
+      return `${pad(name, NAME_W)}${padNum(qty, QTY_W)}${padNum('TBD', PRICE_W)}${padNum('TBD', SUB_W)}${padNum('-', PIECE_W)}`;
     }
-    const modeLabel = i.mode === 'carton' ? '카톤' : '개';
+    const modeLabel = i.mode === 'carton' ? 'ctn' : 'ea';
     const qty = `${i.qty}${modeLabel}`;
     const unitPrice = priceFor(i.product, i.mode);
     const unit = `$${unitPrice.toFixed(2)}`;
@@ -1510,44 +1572,44 @@ function buildOrderText(rep, invoiceNumber){
   }).join('\n');
   const lines = `${header}\n${divider}\n${rows}\n${divider}`;
   const tbdWarning = tbdCount() > 0
-    ? `\n⚠️ 가격 문의(TBD) 상품 ${tbdCount()}건 포함 — 합계에서 제외됨, 별도 견적 확인 필요\n`
+    ? `\n⚠️ Includes ${tbdCount()} price-inquiry (TBD) item(s) — excluded from total, quote needed 가격 문의(TBD) 상품 포함 — 합계에서 제외됨\n`
     : '';
 
-  const delLabel = delivery==='shipping' ? '택배' : '딜리버리';
-  const payLabels = {card:'카드결제', check:'체크', zelle:'Zelle', venmo:'Venmo'};
+  const delLabel = delivery==='shipping' ? 'Shipping 택배' : 'Delivery 딜리버리';
+  const payLabels = {card:'Card 카드결제', check:'Check 체크', zelle:'Zelle', venmo:'Venmo'};
   const payLabel = payLabels[payment] || payment;
   let payNote = '';
   if(payment==='check'){
-    payNote = checkPhotoDataUrl ? '(체크 사진 첨부됨)' : (delivery==='shipping' ? '(⚠️ 체크 사진 미첨부)' : '(수령 시 지불)');
+    payNote = checkPhotoDataUrl ? '(Check photo attached 체크 사진 첨부됨)' : (delivery==='shipping' ? '(⚠️ No check photo attached 체크 사진 미첨부)' : '(Pay on receipt 수령 시 지불)');
   } else if(payment==='zelle'){
-    payNote = document.getElementById('zelleConfirm').checked ? '(결제 완료 확인됨)' : '(⚠️ 결제 확인 안 됨)';
+    payNote = document.getElementById('zelleConfirm').checked ? '(Payment confirmed 결제 완료 확인됨)' : '(⚠️ Payment not confirmed 결제 확인 안 됨)';
   } else if(payment==='venmo'){
-    payNote = document.getElementById('venmoConfirm').checked ? '(결제 완료 확인됨)' : '(⚠️ 결제 확인 안 됨)';
+    payNote = document.getElementById('venmoConfirm').checked ? '(Payment confirmed 결제 완료 확인됨)' : '(⚠️ Payment not confirmed 결제 확인 안 됨)';
   } else if(payment==='card'){
     payNote = '(Pay on website 진행)';
   }
 
-  return `===== PREMIUM K 현장 주문 =====
-${invoiceLine}접수 일시 : ${today}
-★ 영업사원(주문 담당) : ${rep} ★
+  return `===== PREMIUM K SITE ORDER 현장 주문 =====
+${invoiceLine}Date 접수 일시 : ${today}
+★ Sales Rep 영업사원(주문 담당) : ${rep} ★
 ─────────────────────────────
-고객명    : ${document.getElementById('custName').value}
-연락처    : ${document.getElementById('custPhone').value}
-이메일    : ${document.getElementById('custEmail').value || '—'}
-주소      : ${document.getElementById('custAddr').value}
+Customer 고객명    : ${document.getElementById('custName').value}
+Phone 연락처    : ${document.getElementById('custPhone').value}
+Email 이메일    : ${document.getElementById('custEmail').value || '—'}
+Address 주소      : ${document.getElementById('custAddr').value}
 ─────────────────────────────
-주문 상품 :
+Order Items 주문 상품 :
 ${lines}${tbdWarning}
-합계      : $${cartTotal().toFixed(2)}
-수령방법  : ${delLabel}
-결제방법  : ${payLabel} ${payNote}
-영업사원  : ${rep}
-메모      : ${document.getElementById('orderNotes').value || '—'}
-${delivery==='shipping' ? '\n⚠️ 택배 주문 - 선결제 확인 전까지 발송 보류' : ''}
+Total 합계      : $${cartTotal().toFixed(2)}
+Fulfillment 수령방법  : ${delLabel}
+Payment 결제방법  : ${payLabel} ${payNote}
+Sales Rep 영업사원  : ${rep}
+Notes 메모      : ${document.getElementById('orderNotes').value || '—'}
+${delivery==='shipping' ? '\n⚠️ Shipping order — held until prepayment is confirmed 택배 주문 - 선결제 확인 전까지 발송 보류' : ''}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️⚠️ 배송 전, 실제 결제 여부는 반드시 재확인이 필요합니다 ⚠️⚠️
-   (이 시스템은 입금/결제를 자동으로 확인하지 않습니다)
+⚠️⚠️ Please verify actual payment before shipping 배송 전, 실제 결제 여부는 반드시 재확인이 필요합니다 ⚠️⚠️
+   (This system does not automatically confirm payment 이 시스템은 입금/결제를 자동으로 확인하지 않습니다)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 }
 
@@ -1696,15 +1758,15 @@ async function finishOrder(orderText, emailFailed){
   const mailBtn = document.getElementById('mailFallbackBtn');
   if (emailFailed) {
     mailBtn.style.display = 'block';
-    mailBtn.href = `mailto:${CONFIG.TO_EMAIL}?subject=${encodeURIComponent('현장 주문 - ' + document.getElementById('custName').value)}&body=${encodeURIComponent(orderText)}`;
+    mailBtn.href = `mailto:${CONFIG.TO_EMAIL}?subject=${encodeURIComponent('Site Order - ' + document.getElementById('custName').value)}&body=${encodeURIComponent(orderText)}`;
   } else {
     mailBtn.style.display = 'none';
   }
 
 
   document.getElementById('successSub').textContent = emailFailed
-    ? '자동 전송에 실패했습니다. 아래 "메일 앱으로 보내기" 버튼을 눌러 직접 전송해주세요.'
-    : '담당 부서로 주문 내역이 전송되었습니다.';
+    ? 'Automatic sending failed. Please tap "Open in Mail App" below to send it manually. 자동 전송에 실패했습니다. 아래 버튼을 눌러 직접 전송해주세요.'
+    : 'Your order has been sent. 담당 부서로 주문 내역이 전송되었습니다.';
 
   goScreen(3);
 }
@@ -1737,7 +1799,7 @@ function resetApp(){
 }
 
 // init
-document.getElementById('repSelect').innerHTML = CONFIG.REPS.map(r=>`<option value="${r}">${r}</option>`).join('');
+document.getElementById('repSelect').innerHTML = CONFIG.REPS.map(r=>`<option value="${r}">${r==='직접입력' ? 'Enter manually 직접입력' : r}</option>`).join('');
 document.getElementById('zelleImg').src = CONFIG.ZELLE_QR;
 document.getElementById('venmoImg').src = CONFIG.VENMO_QR;
 
